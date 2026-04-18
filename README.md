@@ -1,4 +1,4 @@
-# EdgeGaze
+# EdgeGaze 😄😠😢😐
 ### Real-Time Facial Emotion Detection on ESP32-CAM · TinyML + FreeRTOS + Live Web Dashboard
 
 [![TensorFlow Lite](https://img.shields.io/badge/TFLite-INT8-orange?style=flat-square)](https://www.tensorflow.org/lite/microcontrollers)

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdgeGaze · Live Emotion Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════
+   EdgeGaze Dashboard — Dark Retro-Futuristic Theme
+   ════════════════════════════════════════════════════ */
+
+:root {
+  --bg:      #08080f;
+  --panel:   #0f0f1a;
+  --panel2:  #141422;
+  --border:  #1c1c2e;
+  --border2: #252538;
+
+  --happy:   #f9e04b;
+  --angry:   #f05c5c;
+  --sad:     #6ab0f5;
+  --neutral: #9090b0;
+
+  --text:    #ddddf0;
+  --muted:   #44445a;
+  --muted2:  #666680;
+
+  --glow-h:  0 0 60px 8px rgba(249,224,75,0.12);
+  --glow-a:  0 0 60px 8px rgba(240,92,92,0.14);
+  --glow-s:  0 0 60px 8px rgba(106,176,245,0.12);
+  --glow-n:  0 0 40px 4px rgba(144,144,176,0.07);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  place-items: start center;
+  padding: 2rem 1rem 3rem;
+}
+
+/* Scanline texture */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(255,255,255,0.014) 3px,
+    rgba(255,255,255,0.014) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Noise grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9998;
+  opacity: 0.6;
+}
+
+/* ── Layout container ── */
+.layout {
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.header-logo {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.header-logo span {
+  font-style: italic;
+  opacity: 0.4;
+  font-size: 1rem;
+  margin-left: 2px;
+}
+.chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.chip {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  color: var(--muted2);
+}
+.chip.live {
+  border-color: rgba(76,255,145,0.3);
+  color: #4cff91;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #4cff91;
+  animation: live-pulse 1.6s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes live-pulse {
+  0%,100% { opacity:1; transform:scale(1); box-shadow:0 0 0 0 rgba(76,255,145,0.5); }
+  50%      { opacity:0.5; transform:scale(0.75); box-shadow:0 0 0 4px rgba(76,255,145,0); }
+}
+
+/* ── Main emotion card ── */
+.card-emotion {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 2rem;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.7s ease;
+}
+
+/* Emotion-coloured corner accent */
+.card-emotion::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 180px; height: 180px;
+  border-radius: 0 20px 0 180px;
+  opacity: 0;
+  transition: opacity 0.7s ease, background 0.7s ease;
+}
+.card-emotion.happy  { box-shadow: var(--glow-h); }
+.card-emotion.angry  { box-shadow: var(--glow-a); }
+.card-emotion.sad    { box-shadow: var(--glow-s); }
+.card-emotion.neutral{ box-shadow: var(--glow-n); }
+.card-emotion.happy::before  { background: radial-gradient(circle at top right, rgba(249,224,75,0.08) 0%, transparent 70%); opacity:1; }
+.card-emotion.angry::before  { background: radial-gradient(circle at top right, rgba(240,92,92,0.10) 0%, transparent 70%); opacity:1; }
+.card-emotion.sad::before    { background: radial-gradient(circle at top right, rgba(106,176,245,0.08) 0%, transparent 70%); opacity:1; }
+
+/* Emoji side */
+.emoji-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+.emoji-ring-wrap {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.emoji-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid transparent;
+  animation: ring-spin 8s linear infinite;
+}
+.emoji-ring-inner {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  animation: ring-spin 5s linear infinite reverse;
+}
+@keyframes ring-spin { to { transform: rotate(360deg); } }
+
+.happy  .emoji-ring { border-top-color: var(--happy);   border-right-color: rgba(249,224,75,0.3); animation-duration:5s; }
+.angry  .emoji-ring { border-top-color: var(--angry);   border-right-color: rgba(240,92,92,0.3);  animation-duration:2.5s; }
+.sad    .emoji-ring { border-top-color: var(--sad);     border-right-color: rgba(106,176,245,0.3); animation-duration:9s; }
+.neutral.emoji-ring { border-top-color: var(--neutral); border-right-color: rgba(144,144,176,0.3); animation-duration:14s; }
+
+.happy  .emoji-ring-inner { border-bottom-color: rgba(249,224,75,0.4);  border-left-color: rgba(249,224,75,0.15); }
+.angry  .emoji-ring-inner { border-bottom-color: rgba(240,92,92,0.4);   border-left-color: rgba(240,92,92,0.15);  }
+.sad    .emoji-ring-inner { border-bottom-color: rgba(106,176,245,0.4); border-left-color: rgba(106,176,245,0.15);}
+.neutral.emoji-ring-inner { border-bottom-color: rgba(144,144,176,0.3); border-left-color: rgba(144,144,176,0.1); }
+
+.emoji-face {
+  font-size: 72px;
+  line-height: 1;
+  display: block;
+  transition: transform 0.5s cubic-bezier(.34,1.56,.64,1), filter 0.5s ease;
+  position: relative;
+  z-index: 2;
+  user-select: none;
+}
+.emoji-face.pop { animation: emoji-pop 0.5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes emoji-pop {
+  0%   { transform: scale(0.5) rotate(-10deg); }
+  65%  { transform: scale(1.18) rotate(4deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+/* Info side */
+.info-col { display: flex; flex-direction: column; gap: 1.25rem; }
+
+.emotion-name {
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  transition: color 0.5s ease;
+}
+.happy .emotion-name   { color: var(--happy);   }
+.angry .emotion-name   { color: var(--angry);   }
+.sad .emotion-name     { color: var(--sad);     }
+.neutral .emotion-name { color: var(--neutral); }
+
+/* Confidence bar */
+.conf-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.conf-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.bar-track {
+  height: 5px;
+  background: var(--border2);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.45s cubic-bezier(.4,0,.2,1), background 0.5s ease;
+}
+.happy .bar-fill   { background: var(--happy);   }
+.angry .bar-fill   { background: var(--angry);   }
+.sad .bar-fill     { background: var(--sad);     }
+.neutral .bar-fill { background: var(--neutral); }
+
+/* Inference time badge */
+.badge-row { display: flex; gap: 0.5rem; }
+.badge {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  padding: 4px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--muted2);
+}
+.badge span { color: var(--text); font-weight: 700; }
+
+/* ── Score grid ── */
+.card-scores {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.card-scores-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.score-rows { display: flex; flex-direction: column; gap: 0.6rem; }
+.score-row {
+  display: grid;
+  grid-template-columns: 2rem 5rem 1fr 3rem;
+  align-items: center;
+  gap: 0.75rem;
+}
+.score-emoji { font-size: 1.2rem; line-height: 1; text-align: center; }
+.score-name  {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.score-bar-track {
+  height: 4px;
+  background: var(--border2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s ease, opacity 0.3s ease;
+  opacity: 0.4;
+}
+.score-row.active .score-bar-fill  { opacity: 1; }
+.score-row.active .score-name      { color: var(--text); }
+.score-val {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.72rem;
+  text-align: right;
+  color: var(--muted2);
+  transition: color 0.3s ease;
+}
+.score-row.active .score-val { color: var(--text); font-weight: 700; }
+
+/* ── Bottom row: stats + history ── */
+.bottom-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+.card-stats, .card-history {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+}
+.card-title {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: 1rem;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+}
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-label { font-family: 'Space Mono', monospace; font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.stat-value { font-family: 'Space Mono', monospace; font-size: 0.95rem; font-weight: 700; color: var(--text); }
+
+/* Sparkline */
+.spark-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 40px;
+  padding-top: 4px;
+}
+.spark-bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease, background 0.3s ease;
+}
+.spark-legend {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+}
+.spark-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.57rem;
+  color: var(--muted2);
+}
+.spark-legend-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+
+/* ── Connection banner ── */
+.banner {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.65rem;
+  padding: 0.7rem 1.2rem;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  color: var(--muted2);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: border-color 0.4s ease, color 0.4s ease;
+}
+.banner.connected { border-color: rgba(76,255,145,0.35); color: #4cff91; }
+.banner.error     { border-color: rgba(240,92,92,0.35);  color: var(--angry); }
+
+footer {
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.58rem;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  padding-top: 0.5rem;
+}
+
+/* ── Mobile ── */
+@media (max-width: 520px) {
+  .card-emotion { grid-template-columns: 1fr; text-align: center; }
+  .emoji-col { align-items: center; }
+  .bottom-row { grid-template-columns: 1fr; }
+  .emotion-name { font-size: 2rem; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-logo">EdgeGaze<span>™</span></div>
+    <div class="chips">
+      <span class="chip">ESP32-CAM</span>
+      <span class="chip">TinyML</span>
+      <span class="chip">FreeRTOS</span>
+      <span class="chip live"><span class="live-dot"></span>live</span>
+    </div>
+  </header>
+
+  <!-- Main emotion card -->
+  <div class="card-emotion neutral" id="card">
+    <div class="emoji-col">
+      <div class="emoji-ring-wrap" id="ringWrap">
+        <div class="emoji-ring neutral" id="ring1"></div>
+        <div class="emoji-ring-inner neutral" id="ring2"></div>
+        <span class="emoji-face" id="emojiFace" role="img" aria-label="neutral face">😐</span>
+      </div>
+    </div>
+    <div class="info-col">
+      <div class="emotion-name" id="emotionName">NEUTRAL</div>
+
+      <div class="conf-row">
+        <div class="conf-meta">
+          <span>Confidence</span>
+          <span id="confPct">—</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" id="mainBar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="badge-row">
+        <div class="badge">inference <span id="infMs">—</span></div>
+        <div class="badge">updates <span id="updateCt">0</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-class scores -->
+  <div class="card-scores">
+    <div class="card-scores-title">All class scores</div>
+    <div class="score-rows" id="scoreRows"></div>
+  </div>
+
+  <!-- Stats + History -->
+  <div class="bottom-row">
+    <div class="card-stats">
+      <div class="card-title">System</div>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-label">Uptime</span>
+          <span class="stat-value" id="sUptime">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Free heap</span>
+          <span class="stat-value" id="sHeap">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Inf. ms</span>
+          <span class="stat-value" id="sInfMs">—</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">Conf.</span>
+          <span class="stat-value" id="sConf">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-history">
+      <div class="card-title">History (last 40)</div>
+      <div class="spark-container" id="sparkline"></div>
+      <div class="spark-legend">
+        <div class="spark-legend-item"><span class="spark-legend-dot" style="background:#f9e04b"></span>Happy</div>
+        <div class="spark-legend-item"><span class="spark-legend-dot" style="background:#f05c5c"></span>Angry</div>
+        <div class="spark-legend-item"><span class="spark-legend-dot" style="background:#6ab0f5"></span>Sad</div>
+        <div class="spark-legend-item"><span class="spark-legend-dot" style="background:#9090b0"></span>Neutral</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Connection status -->
+  <div class="banner" id="banner">Connecting to ESP32 event stream…</div>
+
+  <footer>EdgeGaze v1.0 · TensorFlow Lite Micro · FreeRTOS · ESP32-CAM · built for ThrustMIT</footer>
+
+</div>
+
+<script>
+const CLASSES = [
+  { name:'HAPPY',   emoji:'😄', color:'#f9e04b', cls:'happy'   },
+  { name:'ANGRY',   emoji:'😠', color:'#f05c5c', cls:'angry'   },
+  { name:'SAD',     emoji:'😢', color:'#6ab0f5', cls:'sad'     },
+  { name:'NEUTRAL', emoji:'😐', color:'#9090b0', cls:'neutral' },
+];
+const EMOTION_CLASSES = ['happy','angry','sad','neutral'];
+
+// Build score rows
+const scoreRows = document.getElementById('scoreRows');
+CLASSES.forEach((c, i) => {
+  scoreRows.innerHTML += `
+    <div class="score-row" id="sr-${i}">
+      <span class="score-emoji">${c.emoji}</span>
+      <span class="score-name">${c.name}</span>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" id="sbf-${i}" style="width:0%; background:${c.color}"></div>
+      </div>
+      <span class="score-val" id="sv-${i}">0.0%</span>
+    </div>`;
+});
+
+let history = [], updates = 0, lastClass = -1;
+
+function applyResult(r) {
+  const card = document.getElementById('card');
+  const ring1 = document.getElementById('ring1');
+  const ring2 = document.getElementById('ring2');
+  const face  = document.getElementById('emojiFace');
+  const name  = document.getElementById('emotionName');
+  const bar   = document.getElementById('mainBar');
+  const pct   = document.getElementById('confPct');
+
+  const ec = CLASSES[r.class_idx];
+  const confPct = (r.confidence * 100).toFixed(1);
+
+  // Swap class
+  EMOTION_CLASSES.forEach(c => {
+    card.classList.remove(c);
+    ring1.classList.remove(c);
+    ring2.classList.remove(c);
+  });
+  card.classList.add(ec.cls);
+  ring1.classList.add(ec.cls);
+  ring2.classList.add(ec.cls);
+
+  // Emoji pop
+  if (r.class_idx !== lastClass) {
+    face.classList.remove('pop');
+    void face.offsetWidth;
+    face.classList.add('pop');
+    face.textContent = ec.emoji;
+    face.setAttribute('aria-label', ec.name + ' face');
+    lastClass = r.class_idx;
+  }
+
+  name.textContent = ec.name;
+  bar.style.width  = confPct + '%';
+  pct.textContent  = confPct + '%';
+
+  document.getElementById('infMs').textContent    = r.inference_ms + 'ms';
+  document.getElementById('sInfMs').textContent   = r.inference_ms + 'ms';
+  document.getElementById('sConf').textContent    = confPct + '%';
+  document.getElementById('updateCt').textContent = ++updates;
+
+  // Score rows
+  r.scores.forEach((s, i) => {
+    const sp = (s * 100).toFixed(1);
+    document.getElementById('sbf-' + i).style.width = sp + '%';
+    document.getElementById('sv-'  + i).textContent = sp + '%';
+    const row = document.getElementById('sr-' + i);
+    row.classList.toggle('active', i === r.class_idx);
+  });
+
+  // Sparkline
+  history.push(r.class_idx);
+  if (history.length > 40) history.shift();
+  buildSparkline();
+}
+
+function buildSparkline() {
+  const wrap = document.getElementById('sparkline');
+  wrap.innerHTML = '';
+  history.forEach(ci => {
+    const b = document.createElement('div');
+    b.className = 'spark-bar';
+    b.style.background = CLASSES[ci].color;
+    b.style.height = (8 + ci * 8) + 'px';
+    wrap.appendChild(b);
+  });
+}
+
+// Stats polling
+async function fetchStats() {
+  try {
+    const r = await fetch('/status');
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('sUptime').textContent = Math.floor(d.uptime_ms / 1000) + 's';
+    document.getElementById('sHeap').textContent   = Math.floor(d.free_heap / 1024) + 'KB';
+  } catch {}
+}
+setInterval(fetchStats, 3000);
+
+// SSE
+function connect() {
+  const banner = document.getElementById('banner');
+  banner.className = 'banner';
+  banner.textContent = 'Connecting to event stream…';
+
+  const es = new EventSource('/events');
+
+  es.onopen = () => {
+    banner.className   = 'banner connected';
+    banner.textContent = '⬤ Connected — receiving live data from ESP32';
+  };
+
+  es.addEventListener('result', e => {
+    try { applyResult(JSON.parse(e.data)); }
+    catch(err) { console.error(err); }
+  });
+
+  es.onerror = () => {
+    banner.className   = 'banner error';
+    banner.textContent = '✕ Connection lost — reconnecting in 3s…';
+    es.close();
+    setTimeout(connect, 3000);
+  };
+}
+
+connect();
+fetchStats();
+</script>
+</body>
+</html>
